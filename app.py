@@ -1,29 +1,38 @@
-# app.py
 import streamlit as st
-import pickle
 import pandas as pd
+import pickle
 
-# Load model
-with open('house_price_model.pkl', 'rb') as f:
+# Load model and locations
+with open("house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# Locations (from your dataset)
-locations = [
-    'Electronic City Phase II', 'Chikka Tirupathi', 'Uttarahalli',
-    'Lingadheeranahalli', 'Kothanur', 'Whitefield',
-    'Old Airport Road', 'Marathahalli', 'other'
-]
+with open("locations.pkl", "rb") as f:
+    locations = pickle.load(f)
 
-# UI
-st.title("🏠 House Price Predictor")
+st.title("🏠 House Price Prediction App")
 
-location = st.selectbox("Select Location", locations)
-sqft = st.number_input("Enter Total Square Feet", min_value=300, step=50)
-bath = st.selectbox("Number of Bathrooms", [1, 2, 3, 4, 5, 6])
-bhk = st.selectbox("Number of BHK", [1, 2, 3, 4, 5, 6])
+# Inputs
+location = st.selectbox("Location", locations)
+total_sqft = st.number_input("Total Square Feet", min_value=300, max_value=10000, step=10)
+bath = st.number_input("Number of Bathrooms", min_value=1, max_value=10, step=1)
+bhk = st.number_input("Number of BHK", min_value=1, max_value=10, step=1)
 
+# Warning for unrealistic inputs
+if total_sqft / bhk < 300:
+    st.warning("Total sqft per BHK seems too low. Are you sure about the inputs?")
+
+# Predict
 if st.button("Predict Price"):
-    input_df = pd.DataFrame([[location, sqft, bath, bhk]],
-                            columns=['location', 'total_sqft', 'bath', 'BHK'])
-    prediction = model.predict(input_df)[0]
-    st.success(f"Estimated Price: ₹ {prediction:.2f} Lakhs")
+    input_df = pd.DataFrame([{
+        'location': location,
+        'total_sqft': total_sqft,
+        'bath': bath,
+        'BHK': bhk
+    }])
+
+    try:
+        price = model.predict(input_df)[0]
+        price = max(price, 0)  # Prevent negative values
+        st.success(f"Estimated Price: ₹ {price:,.2f} Lakhs")
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
